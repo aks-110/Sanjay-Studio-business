@@ -1,0 +1,64 @@
+{
+  "activity_logs": [],
+  "notifications": [],
+  "gallery_metadata": [
+    {
+      "_id": "gal-1",
+      "photographerId": "photo-uuid-2222",
+      "title": "Sunset Beach Wedding",
+      "description": "A romantic wedding photoshoot on the beaches of Maui during golden hour.",
+      "imageUrl": "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80",
+      "tags": [
+        "wedding",
+        "beach",
+        "sunset",
+        "couple"
+      ],
+      "dimensions": {
+        "width": 1200,
+        "height": 800
+      },
+      "sizeBytes": 450000,
+      "createdAt": "2026-06-04T12:11:33.999Z"
+    },
+    {
+      "_id": "gal-2",
+      "photographerId": "photo-uuid-2222",
+      "title": "Rustic Forest Wedding",
+      "description": "Ethereal forest background featuring warm fairy lights and classic elegance.",
+      "imageUrl": "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=800&q=80",
+      "tags": [
+        "wedding",
+        "forest",
+        "nature",
+        "lights"
+      ],
+      "dimensions": {
+        "width": 1200,
+        "height": 800
+      },
+      "sizeBytes": 520000,
+      "createdAt": "2026-06-04T12:11:34.000Z"
+    },
+    {
+      "_id": "gal-3",
+      "photographerId": "photo-uuid-2222",
+      "title": "Modern Studio Portraiture",
+      "description": "Sleek studio headshots focusing on lighting transitions and shadow styling.",
+      "imageUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80",
+      "tags": [
+        "portrait",
+        "studio",
+        "lighting",
+        "fashion"
+      ],
+      "dimensions": {
+        "width": 1000,
+        "height": 1000
+      },
+      "sizeBytes": 380000,
+      "createdAt": "2026-06-04T12:11:34.000Z"
+    }
+  ],
+  "analytics_metrics": []
+}

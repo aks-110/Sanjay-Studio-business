@@ -1,0 +1,28 @@
+{
+  "name": "stationery-photo-rental-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.2.3",
+    "@tanstack/react-query": "^5.29.2",
+    "axios": "^1.6.8",
+    "lucide-react": "^0.368.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-redux": "^9.1.1",
+    "react-router-dom": "^6.22.3",
+    "recharts": "^2.12.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "tailwindcss": "^4.0.0",
+    "vite": "^5.2.8"
+  }
+}
