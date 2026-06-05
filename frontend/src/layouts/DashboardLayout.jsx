@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
   Camera, BarChart3, Users, Calendar, Repeat, ShoppingBag, 
-  Database, LineChart, Bell, FileText, UserCircle, LogOut, LayoutGrid, Home 
+  Database, LineChart, FileText, UserCircle, LogOut, Home, Menu, X 
 } from 'lucide-react';
 import { logout } from '../store/authSlice.js';
 import { clearCart } from '../store/cartSlice.js';
@@ -13,6 +13,7 @@ export default function DashboardLayout({ children }) {
   const dispatch = useDispatch();
   const location = useLocation();
   const { user } = useSelector(state => state.auth);
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -20,7 +21,7 @@ export default function DashboardLayout({ children }) {
     navigate('/');
   };
 
-  const isAdmin = user && ['Admin', 'Super Admin', 'Rental Manager', 'Inventory Manager'].includes(user.role);
+  const isAdmin = user && user.role === 'Admin';
 
   // Define sidebar menu options based on role
   const adminLinks = [
@@ -44,27 +45,47 @@ export default function DashboardLayout({ children }) {
   const currentLinks = isAdmin ? adminLinks : customerLinks;
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
+    <div className="flex min-h-screen bg-slate-50 text-slate-800">
+      {/* Mobile Sidebar Backdrop Overlay */}
+      {isOpen && (
+        <div 
+          onClick={() => setIsOpen(false)} 
+          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs lg:hidden"
+        />
+      )}
+
       {/* Sidebar Panel */}
-      <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0">
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between shrink-0 transition-transform duration-300 ease-in-out
+        lg:static lg:translate-x-0
+        ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
+      `}>
         <div>
           {/* Brand header */}
-          <div className="h-16 flex items-center px-6 border-b border-slate-800 gap-2">
-            <Camera className="h-5 w-5 text-indigo-500" />
-            <span className="font-bold text-sm tracking-wider text-indigo-300">APEX PORTAL</span>
+          <div className="h-16 flex items-center justify-between px-6 border-b border-slate-100 gap-2">
+            <div className="flex items-center gap-2">
+              <Camera className="h-5 w-5 text-indigo-600" />
+              <span className="font-bold text-sm tracking-wider text-indigo-600">APEX PORTAL</span>
+            </div>
+            <button 
+              onClick={() => setIsOpen(false)}
+              className="p-1.5 text-slate-400 hover:text-slate-700 lg:hidden cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
 
           {/* Navigation Links */}
           <nav className="p-4 space-y-1">
             <Link
               to="/"
-              className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all"
+              className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-indigo-600 hover:bg-slate-50 transition-all"
             >
               <Home className="h-4 w-4" />
               <span>Back to Home</span>
             </Link>
 
-            <div className="h-px bg-slate-800 my-4"></div>
+            <div className="h-px bg-slate-100 my-4"></div>
 
             {currentLinks.map((link) => {
               const Icon = link.icon;
@@ -73,10 +94,11 @@ export default function DashboardLayout({ children }) {
                 <Link
                   key={link.name}
                   to={link.path}
+                  onClick={() => setIsOpen(false)}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all ${
                     isActive 
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/15' 
+                      : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -88,15 +110,15 @@ export default function DashboardLayout({ children }) {
         </div>
 
         {/* User Identity Footer */}
-        <div className="p-4 border-t border-slate-800">
-          <div className="flex items-center justify-between gap-2 p-2 bg-slate-950/40 rounded-lg">
+        <div className="p-4 border-t border-slate-100">
+          <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 rounded-lg">
             <div className="overflow-hidden">
-              <p className="text-xs font-bold text-slate-200 truncate">{user?.first_name} {user?.last_name}</p>
-              <p className="text-[10px] text-indigo-400 font-semibold truncate capitalize">{user?.role}</p>
+              <p className="text-xs font-bold text-slate-700 truncate">{user?.first_name} {user?.last_name}</p>
+              <p className="text-[10px] text-indigo-600 font-semibold truncate capitalize">{user?.role}</p>
             </div>
             <button
               onClick={handleLogout}
-              className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-md transition-colors"
+              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
               title="Logout"
             >
               <LogOut className="h-4 w-4" />
@@ -108,12 +130,21 @@ export default function DashboardLayout({ children }) {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header bar */}
-        <header className="h-16 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between px-8">
-          <h1 className="text-sm font-bold text-slate-400 tracking-wide uppercase">
-            {isAdmin ? 'Management Workspace' : 'Customer Account'}
-          </h1>
+        <header className="h-16 border-b border-slate-100 bg-white flex items-center justify-between px-8">
+          <div className="flex items-center">
+            {/* Hamburger Menu Toggle Button */}
+            <button
+              onClick={() => setIsOpen(true)}
+              className="p-2 -ml-2 mr-3 text-slate-500 hover:text-slate-700 lg:hidden cursor-pointer"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <h1 className="text-sm font-bold text-slate-600 tracking-wide uppercase">
+              {isAdmin ? 'Management Workspace' : 'Customer Account'}
+            </h1>
+          </div>
           <div className="flex items-center gap-4">
-            <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-indigo-950 text-indigo-400 border border-indigo-500/20">
+            <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">
               Session Active
             </span>
           </div>

@@ -20,7 +20,7 @@ export default function Login() {
       dispatch(loginSuccess(data));
 
       const role = data.user.role;
-      if (['Admin', 'Super Admin', 'Rental Manager', 'Inventory Manager'].includes(role)) {
+      if (role === 'Admin') {
         navigate('/dashboard/admin');
       } else {
         navigate('/dashboard/customer');
@@ -31,51 +31,51 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl" />
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-indigo-500/5 rounded-full blur-3xl" />
       
       <div className="w-full max-w-md relative z-10">
         {/* Header logo */}
         <div className="flex flex-col items-center mb-8">
-          <Link to="/" className="flex items-center gap-2 text-indigo-400 font-extrabold text-2xl mb-2">
+          <Link to="/" className="flex items-center gap-2 text-indigo-600 font-extrabold text-2xl mb-2 hover:text-indigo-500 transition-colors">
             <Camera className="h-7 w-7" />
-            <span>APEX<span className="text-white">STUDIOS</span></span>
+            <span>APEX<span className="text-slate-800">STUDIOS</span></span>
           </Link>
-          <p className="text-xs text-slate-400">Sign in to manage your bookings, rentals, and stationery orders.</p>
+          <p className="text-xs text-slate-500">Sign in to manage your bookings, rentals, and stationery orders.</p>
         </div>
 
         {/* Card Panel */}
-        <div className="glass-panel p-8 rounded-2xl border border-slate-800 shadow-2xl">
-          <h2 className="text-lg font-bold text-white mb-6">Welcome Back</h2>
+        <div className="glass-panel p-8 rounded-2xl border border-slate-200 shadow-xl">
+          <h2 className="text-lg font-bold text-slate-800 mb-6">Welcome Back</h2>
 
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-red-950/60 border border-red-500/30 text-red-300 text-xs flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0" />
+            <div className="mb-4 p-3 rounded-lg bg-red-55 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
               <span>{error}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Email Address</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Email Address</label>
               <input
                 type="email"
                 required
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-sm focus:border-indigo-500 focus:outline-none"
+                className="w-full px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-800 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 placeholder="customer@platform.com"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Password</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Password</label>
               <input
                 type="password"
                 required
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-sm focus:border-indigo-500 focus:outline-none"
+                className="w-full px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-800 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 placeholder="••••••••"
               />
             </div>
@@ -83,7 +83,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-xs font-bold text-white transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-300 text-xs font-bold text-white transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading && <Loader className="h-4 w-4 animate-spin" />}
               <span>Sign In</span>
@@ -91,20 +91,18 @@ export default function Login() {
           </form>
 
           {/* Quick Seeds Guide */}
-          <div className="mt-8 pt-6 border-t border-slate-800 text-[10px] text-slate-500">
-            <p className="font-bold mb-2 uppercase text-slate-400">Sandbox Test Accounts (Password: password123):</p>
+          <div className="mt-8 pt-6 border-t border-slate-100 text-[10px] text-slate-400 font-semibold">
+            <p className="font-bold mb-2 uppercase text-slate-500">Sandbox Test Accounts (Password: password123):</p>
             <ul className="space-y-1">
-              <li>• Admin: <span className="text-indigo-400">admin@platform.com</span></li>
-              <li>• Customer: <span className="text-indigo-400">customer@platform.com</span></li>
-              <li>• Photographer: <span className="text-indigo-400">photographer@platform.com</span></li>
-              <li>• Rental Manager: <span className="text-indigo-400">rental@platform.com</span></li>
+              <li>• Admin: <span className="text-indigo-600">admin@platform.com</span></li>
+              <li>• Customer: <span className="text-indigo-600">customer@platform.com</span></li>
             </ul>
           </div>
         </div>
 
-        <div className="mt-6 text-center text-xs text-slate-500">
+        <div className="mt-6 text-center text-xs text-slate-500 font-semibold">
           <span>Don't have an account? </span>
-          <Link to="/register" className="text-indigo-400 font-semibold hover:underline">Sign Up</Link>
+          <Link to="/register" className="text-indigo-600 font-semibold hover:underline">Sign Up</Link>
         </div>
       </div>
     </div>

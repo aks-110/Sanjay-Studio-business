@@ -1,12 +1,12 @@
-import { IUserRepository } from './IUserRepository.js';
-import { supabase } from '../../shared/database/client.js';
+import { IUserRepository } from "./IUserRepository.js";
+import { supabase } from "../../shared/database/client.js";
 
 export class SupabaseUserRepository extends IUserRepository {
   // Helper to map DB response to match SQLite object format
   mapUser(dbUser) {
     if (!dbUser) return null;
-    const roleName = dbUser.user_roles?.[0]?.role?.name || 'Customer';
-    
+    const roleName = dbUser.user_roles?.[0]?.role?.name || "Customer";
+
     const permissionsList = [];
     if (dbUser.user_roles) {
       for (const ur of dbUser.user_roles) {
@@ -23,6 +23,7 @@ export class SupabaseUserRepository extends IUserRepository {
 
     return {
       id: dbUser.id,
+      clerk_id: dbUser.clerk_id,
       email: dbUser.email,
       first_name: dbUser.first_name,
       last_name: dbUser.last_name,
@@ -30,14 +31,15 @@ export class SupabaseUserRepository extends IUserRepository {
       role: roleName,
       permissions: JSON.stringify(uniquePermissions),
       created_at: dbUser.created_at,
-      updated_at: dbUser.updated_at
+      updated_at: dbUser.updated_at,
     };
   }
 
   async getById(userId) {
     const { data, error } = await supabase
-      .from('users')
-      .select(`
+      .from("users")
+      .select(
+        `
         *,
         user_roles (
           role:roles (
@@ -49,8 +51,34 @@ export class SupabaseUserRepository extends IUserRepository {
             )
           )
         )
-      `)
-      .eq('id', userId)
+      `,
+      )
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return this.mapUser(data);
+  }
+
+  async getByClerkId(clerkId) {
+    const { data, error } = await supabase
+      .from("users")
+      .select(
+        `
+        *,
+        user_roles (
+          role:roles (
+            name,
+            role_permissions (
+              permission:permissions (
+                name
+              )
+            )
+          )
+        )
+      `,
+      )
+      .eq("clerk_id", clerkId)
       .maybeSingle();
 
     if (error) throw error;
@@ -59,8 +87,9 @@ export class SupabaseUserRepository extends IUserRepository {
 
   async getByEmail(email) {
     const { data, error } = await supabase
-      .from('users')
-      .select(`
+      .from("users")
+      .select(
+        `
         *,
         user_roles (
           role:roles (
@@ -72,8 +101,9 @@ export class SupabaseUserRepository extends IUserRepository {
             )
           )
         )
-      `)
-      .eq('email', email)
+      `,
+      )
+      .eq("email", email)
       .maybeSingle();
 
     if (error) throw error;
@@ -87,16 +117,18 @@ export class SupabaseUserRepository extends IUserRepository {
 
   async getFirstUserByRole(roleName) {
     const { data, error } = await supabase
-      .from('users')
-      .select(`
+      .from("users")
+      .select(
+        `
         *,
         user_roles!inner (
           role:roles!inner (
             name
           )
         )
-      `)
-      .eq('user_roles.role.name', roleName)
+      `,
+      )
+      .eq("user_roles.role.name", roleName)
       .limit(1)
       .maybeSingle();
 
@@ -105,9 +137,7 @@ export class SupabaseUserRepository extends IUserRepository {
   }
 
   async getAll() {
-    const { data, error } = await supabase
-      .from('users')
-      .select(`
+    const { data, error } = await supabase.from("users").select(`
         *,
         user_roles (
           role:roles (
@@ -122,14 +152,28 @@ export class SupabaseUserRepository extends IUserRepository {
       `);
 
     if (error) throw error;
-    return (data || []).map(u => this.mapUser(u));
+    return (data || []).map((u) => this.mapUser(u));
   }
 
-  async create({ id, email, password_hash, first_name, last_name, phone, role = 'Customer', permissions = [] }) {
+  async create({
+    id,
+    clerk_id,
+    email,
+    password_hash,
+    first_name,
+    last_name,
+    phone,
+    role = "Customer",
+    permissions = [],
+  }) {
     // 1. Insert user record
+    const insertData = { email, password_hash, first_name, last_name, phone };
+    if (id) insertData.id = id;
+    if (clerk_id) insertData.clerk_id = clerk_id;
+
     const { data: user, error: userError } = await supabase
-      .from('users')
-      .insert({ id, email, password_hash, first_name, last_name, phone })
+      .from("users")
+      .insert(insertData)
       .select()
       .single();
 
@@ -137,9 +181,9 @@ export class SupabaseUserRepository extends IUserRepository {
 
     // 2. Fetch role ID
     let { data: roleRecord, error: roleError } = await supabase
-      .from('roles')
-      .select('id')
-      .eq('name', role)
+      .from("roles")
+      .select("id")
+      .eq("name", role)
       .maybeSingle();
 
     if (roleError) throw roleError;
@@ -147,7 +191,7 @@ export class SupabaseUserRepository extends IUserRepository {
     if (!roleRecord) {
       // Create role if it doesn't exist
       const { data: newRole, error: newRoleError } = await supabase
-        .from('roles')
+        .from("roles")
         .insert({ name: role })
         .select()
         .single();
@@ -157,7 +201,7 @@ export class SupabaseUserRepository extends IUserRepository {
 
     // 3. Link user to role
     const { error: linkError } = await supabase
-      .from('user_roles')
+      .from("user_roles")
       .insert({ user_id: user.id, role_id: roleRecord.id });
 
     if (linkError) throw linkError;
@@ -166,14 +210,14 @@ export class SupabaseUserRepository extends IUserRepository {
     if (permissions && permissions.length > 0) {
       for (const permName of permissions) {
         let { data: permRecord } = await supabase
-          .from('permissions')
-          .select('id')
-          .eq('name', permName)
+          .from("permissions")
+          .select("id")
+          .eq("name", permName)
           .maybeSingle();
 
         if (!permRecord) {
           const { data: newPerm } = await supabase
-            .from('permissions')
+            .from("permissions")
             .insert({ name: permName })
             .select()
             .single();
@@ -181,15 +225,15 @@ export class SupabaseUserRepository extends IUserRepository {
         }
 
         const { error: rolePermError } = await supabase
-          .from('role_permissions')
+          .from("role_permissions")
           .upsert(
             {
               role_id: roleRecord.id,
-              permission_id: permRecord.id
+              permission_id: permRecord.id,
             },
             {
-              onConflict: 'role_id,permission_id'
-            }
+              onConflict: "role_id,permission_id",
+            },
           );
 
         if (rolePermError) {
@@ -201,11 +245,21 @@ export class SupabaseUserRepository extends IUserRepository {
     return this.getById(user.id);
   }
 
-  async updateProfile(userId, { first_name, last_name, phone }) {
+  async updateProfile(
+    userId,
+    { first_name, last_name, phone, last_login, password_hash },
+  ) {
+    const updateData = { updated_at: new Date().toISOString() };
+    if (first_name !== undefined) updateData.first_name = first_name;
+    if (last_name !== undefined) updateData.last_name = last_name;
+    if (phone !== undefined) updateData.phone = phone;
+    if (last_login !== undefined) updateData.last_login = last_login;
+    if (password_hash !== undefined) updateData.password_hash = password_hash;
+
     const { error } = await supabase
-      .from('users')
-      .update({ first_name, last_name, phone, updated_at: new Date().toISOString() })
-      .eq('id', userId);
+      .from("users")
+      .update(updateData)
+      .eq("id", userId);
 
     if (error) throw error;
     return this.getById(userId);
@@ -214,14 +268,14 @@ export class SupabaseUserRepository extends IUserRepository {
   async updateRoleAndPermissions(userId, { role, permissions }) {
     // 1. Get role ID or create role
     let { data: roleRecord } = await supabase
-      .from('roles')
-      .select('id')
-      .eq('name', role)
+      .from("roles")
+      .select("id")
+      .eq("name", role)
       .maybeSingle();
 
     if (!roleRecord) {
       const { data: newRole } = await supabase
-        .from('roles')
+        .from("roles")
         .insert({ name: role })
         .select()
         .single();
@@ -229,8 +283,10 @@ export class SupabaseUserRepository extends IUserRepository {
     }
 
     // 2. Update user_roles mapping
-    await supabase.from('user_roles').delete().eq('user_id', userId);
-    await supabase.from('user_roles').insert({ user_id: userId, role_id: roleRecord.id });
+    await supabase.from("user_roles").delete().eq("user_id", userId);
+    await supabase
+      .from("user_roles")
+      .insert({ user_id: userId, role_id: roleRecord.id });
 
     // 3. Re-assign permissions to the role
     if (permissions && permissions.length > 0) {
@@ -238,14 +294,14 @@ export class SupabaseUserRepository extends IUserRepository {
       const permIds = [];
       for (const permName of permissions) {
         let { data: permRecord } = await supabase
-          .from('permissions')
-          .select('id')
-          .eq('name', permName)
+          .from("permissions")
+          .select("id")
+          .eq("name", permName)
           .maybeSingle();
 
         if (!permRecord) {
           const { data: newPerm } = await supabase
-            .from('permissions')
+            .from("permissions")
             .insert({ name: permName })
             .select()
             .single();
@@ -257,11 +313,17 @@ export class SupabaseUserRepository extends IUserRepository {
       }
 
       // Clear existing permissions for this role and insert new ones
-      await supabase.from('role_permissions').delete().eq('role_id', roleRecord.id);
-      
-      const rolePerms = permIds.map(pid => ({ role_id: roleRecord.id, permission_id: pid }));
+      await supabase
+        .from("role_permissions")
+        .delete()
+        .eq("role_id", roleRecord.id);
+
+      const rolePerms = permIds.map((pid) => ({
+        role_id: roleRecord.id,
+        permission_id: pid,
+      }));
       if (rolePerms.length > 0) {
-        await supabase.from('role_permissions').insert(rolePerms);
+        await supabase.from("role_permissions").insert(rolePerms);
       }
     }
 

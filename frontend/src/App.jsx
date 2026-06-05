@@ -8,12 +8,17 @@ import { store } from './store/index.js';
 import Home from './features/home/Home.jsx';
 import Login from './features/auth/Login.jsx';
 import Register from './features/auth/Register.jsx';
+import ClerkSync from './features/auth/ClerkSync.jsx';
 import Shop from './features/shop/Shop.jsx';
 import Rentals from './features/rental/Rentals.jsx';
 import Bookings from './features/booking/Bookings.jsx';
 import Gallery from './features/gallery/Gallery.jsx';
-import CustomerDashboard from './features/dashboard/CustomerDashboard.jsx';
-import AdminDashboard from './features/dashboard/AdminDashboard.jsx';
+import CustomerDashboard from './features/dashboard/customer/CustomerDashboard.jsx';
+import AdminDashboard from './features/dashboard/admin/AdminDashboard.jsx';
+
+import PrivateRoute from './routes/PrivateRoute.jsx';
+import AdminRoute from './routes/AdminRoute.jsx';
+import CustomerRoute from './routes/CustomerRoute.jsx';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,26 +29,14 @@ const queryClient = new QueryClient({
   }
 });
 
-// Guard Component to enforce routing policies
-function ProtectedRoute({ children, allowedRoles }) {
-  const { isAuthenticated, user } = useSelector((state) => state.auth);
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
-}
-
 export default function App() {
+  const useClerk = import.meta.env.VITE_USE_CLERK === 'true';
+
   return (
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
+          {useClerk && <ClerkSync />}
           <Routes>
             {/* Public Access */}
             <Route path="/" element={<Home />} />
@@ -58,9 +51,9 @@ export default function App() {
             <Route
               path="/dashboard/customer/*"
               element={
-                <ProtectedRoute allowedRoles={['Customer']}>
+                <CustomerRoute>
                   <CustomerDashboard />
-                </ProtectedRoute>
+                </CustomerRoute>
               }
             />
 
@@ -68,9 +61,9 @@ export default function App() {
             <Route
               path="/dashboard/admin/*"
               element={
-                <ProtectedRoute allowedRoles={['Admin', 'Super Admin', 'Rental Manager', 'Inventory Manager']}>
+                <AdminRoute>
                   <AdminDashboard />
-                </ProtectedRoute>
+                </AdminRoute>
               }
             />
 

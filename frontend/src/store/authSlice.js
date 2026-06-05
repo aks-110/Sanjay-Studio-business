@@ -4,11 +4,13 @@ const token = localStorage.getItem('token') || null;
 const userStr = localStorage.getItem('user');
 let user = null;
 let permissions = [];
+let role = null;
 
 if (userStr) {
   try {
     user = JSON.parse(userStr);
     permissions = JSON.parse(user.permissions || '[]');
+    role = user.role || null;
   } catch (e) {
     console.error('Failed to parse user session storage:', e);
   }
@@ -16,9 +18,10 @@ if (userStr) {
 
 const initialState = {
   user,
-  token,
-  permissions,
+  role,
+  accessToken: token,
   isAuthenticated: !!token,
+  permissions,
   loading: false,
   error: null
 };
@@ -36,7 +39,8 @@ const authSlice = createSlice({
       state.loading = false;
       state.isAuthenticated = true;
       state.user = user;
-      state.token = token;
+      state.role = user.role;
+      state.accessToken = token;
       state.permissions = JSON.parse(user.permissions || '[]');
       state.error = null;
 
@@ -49,7 +53,8 @@ const authSlice = createSlice({
     },
     logout(state) {
       state.user = null;
-      state.token = null;
+      state.role = null;
+      state.accessToken = null;
       state.permissions = [];
       state.isAuthenticated = false;
       state.loading = false;
@@ -60,6 +65,7 @@ const authSlice = createSlice({
     },
     updateProfileSuccess(state, action) {
       state.user = action.payload;
+      state.role = action.payload.role;
       localStorage.setItem('user', JSON.stringify(action.payload));
     }
   }
