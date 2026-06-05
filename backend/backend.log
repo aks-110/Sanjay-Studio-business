@@ -1,0 +1,18 @@
+
+> stationery-photo-rental-backend@1.0.0 dev
+> nodemon src/app.js
+
+[33m[nodemon] 3.1.14[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[Database Initialization] Starting connections...
+[Supabase Connected] Successfully verified Supabase connection.
+[MongoDB Connection Attempt] Connecting to MongoDB... Attempts left: 3
+[MongoDB Connected] Connection established successfully.
+[Database Initialization] Database verification complete.
+===============================================
+   STATIONERY & PHOTOGRAPHY MULTI-DOMAIN APIS
+   Running on http://localhost:8000
+===============================================

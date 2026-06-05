@@ -1,26 +1,18 @@
-import { mongoMock } from '../../shared/database/index.js';
+import { NotificationRepository } from './NotificationRepository.js';
+import { PaymentRepository } from '../payments/PaymentRepository.js';
 import appEvents from '../../shared/events/index.js';
 
 export const notificationService = {
   async getNotifications(userId) {
-    const coll = mongoMock.collection('notifications');
-    return coll.find({ userId }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return NotificationRepository.getByUserId(userId);
   },
 
   async markAsRead(notificationId) {
-    const coll = mongoMock.collection('notifications');
-    return coll.updateMany({ _id: notificationId }, { status: 'read' });
+    return NotificationRepository.markAsRead(notificationId);
   },
 
   async createNotification(userId, title, message, type = 'in_app') {
-    const coll = mongoMock.collection('notifications');
-    return coll.insert({
-      userId,
-      title,
-      message,
-      type,
-      status: 'unread'
-    });
+    return NotificationRepository.create({ userId, title, message, type });
   }
 };
 
@@ -53,7 +45,7 @@ appEvents.subscribe('order.placed', async ({ order }) => {
 });
 
 appEvents.subscribe('payment.completed', async ({ payment }) => {
-  const customerId = await paymentServiceGetCustomerId(payment.entity_type, payment.entity_id);
+  const customerId = await PaymentRepository.getCustomerIdFromEntity(payment.entity_type, payment.entity_id);
   if (customerId) {
     console.log('[Event Listener] Queueing payment receipt notification for customer:', customerId);
     await notificationService.createNotification(
@@ -64,18 +56,3 @@ appEvents.subscribe('payment.completed', async ({ payment }) => {
   }
 });
 
-// Avoid circular imports helper
-async function paymentServiceGetCustomerId(type, id) {
-  // Directly query SQLite to get customer_id
-  import('../../shared/database/index.js').then(async ({ dbQuery }) => {
-    let row;
-    if (type === 'Booking') {
-      row = await dbQuery.get('SELECT customer_id FROM bookings WHERE id = ?', [id]);
-    } else if (type === 'Rental') {
-      row = await dbQuery.get('SELECT customer_id FROM rentals WHERE id = ?', [id]);
-    } else if (type === 'Order') {
-      row = await dbQuery.get('SELECT customer_id FROM orders WHERE id = ?', [id]);
-    }
-    return row ? row.customer_id : null;
-  }).catch(() => null);
-}

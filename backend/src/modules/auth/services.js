@@ -1,12 +1,12 @@
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { dbQuery } from '../../shared/database/index.js';
+import { UserRepository } from '../users/UserRepository.js';
 import { generateAccessToken, generateRefreshToken } from '../../shared/middleware/auth.js';
 import appEvents from '../../shared/events/index.js';
 
 export const authService = {
   async register({ email, password, first_name, last_name, phone }) {
-    const existing = await dbQuery.get('SELECT id FROM users WHERE email = ?', [email]);
+    const existing = await UserRepository.getByEmail(email);
     if (existing) {
       throw new Error('Email already in use');
     }
@@ -14,7 +14,7 @@ export const authService = {
     const salt = await bcrypt.genSalt(10);
     const passHash = await bcrypt.hash(password, salt);
     const id = uuidv4();
-    const defaultPermissions = JSON.stringify([
+    const defaultPermissions = [
       'products:read',
       'gallery:read',
       'bookings:create',
@@ -23,15 +23,19 @@ export const authService = {
       'rentals:read-own',
       'orders:create',
       'orders:read-own'
-    ]);
+    ];
 
-    await dbQuery.run(`
-      INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, permissions)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [id, email, passHash, first_name, last_name, phone, 'Customer', defaultPermissions]);
+    const user = await UserRepository.create({
+      id,
+      email,
+      password_hash: passHash,
+      first_name,
+      last_name,
+      phone,
+      role: 'Customer',
+      permissions: defaultPermissions
+    });
 
-    const user = await dbQuery.get('SELECT id, email, first_name, last_name, role, permissions FROM users WHERE id = ?', [id]);
-    
     // Publish user.registered event
     appEvents.publish('user.registered', { user });
 
@@ -42,7 +46,7 @@ export const authService = {
   },
 
   async login({ email, password }) {
-    const user = await dbQuery.get('SELECT * FROM users WHERE email = ?', [email]);
+    const user = await UserRepository.getByEmail(email);
     if (!user) {
       throw new Error('Invalid email or password');
     }
@@ -75,7 +79,7 @@ export const authService = {
   },
 
   async refresh(userId) {
-    const user = await dbQuery.get('SELECT id, email, first_name, last_name, role, permissions FROM users WHERE id = ?', [userId]);
+    const user = await UserRepository.getById(userId);
     if (!user) {
       throw new Error('User not found');
     }
@@ -84,3 +88,4 @@ export const authService = {
     return { token };
   }
 };
+

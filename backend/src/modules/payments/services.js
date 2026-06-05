@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { dbQuery } from '../../shared/database/index.js';
+import { PaymentRepository } from './PaymentRepository.js';
 import appEvents from '../../shared/events/index.js';
 
 export const paymentService = {
@@ -14,29 +14,23 @@ export const paymentService = {
     const tax_amount = total_amount * tax_rate;
     const final_amount = Number(total_amount) + Number(tax_amount);
 
-    await dbQuery.run(`
-      INSERT INTO invoices (id, payment_id, customer_id, invoice_number, total_amount, tax_amount, status, pdf_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [id, payment_id, customer_id, invoiceNum, final_amount, tax_amount, status, `/invoices/${invoiceNum}.pdf`]);
-
-    return dbQuery.get('SELECT * FROM invoices WHERE id = ?', [id]);
+    return PaymentRepository.createInvoice({
+      id,
+      payment_id,
+      customer_id,
+      invoice_number: invoiceNum,
+      total_amount: final_amount,
+      tax_amount,
+      status,
+      pdf_url: `/invoices/${invoiceNum}.pdf`
+    });
   },
 
   async listInvoices(user) {
     if (user.role === 'Admin' || user.role === 'Super Admin') {
-      return dbQuery.all(`
-        SELECT i.*, c.first_name || ' ' || c.last_name as customer_name, c.email as customer_email
-        FROM invoices i
-        JOIN users c ON i.customer_id = c.id
-        ORDER BY i.created_at DESC
-      `);
+      return PaymentRepository.getAllInvoices();
     } else {
-      return dbQuery.all(`
-        SELECT i.*
-        FROM invoices i
-        WHERE i.customer_id = ?
-        ORDER BY i.created_at DESC
-      `, [user.id]);
+      return PaymentRepository.getInvoicesByCustomerId(user.id);
     }
   },
 
@@ -45,30 +39,31 @@ export const paymentService = {
     const gatewayId = 'pay_' + uuidv4().substring(0, 12);
     const paymentId = uuidv4();
 
-    await dbQuery.run(`
-      INSERT INTO payments (id, payment_gateway_id, amount, status, payment_method, entity_type, entity_id)
-      VALUES (?, ?, ?, 'Pending', ?, ?, ?)
-    `, [paymentId, gatewayId, amount, payment_method, entity_type, entity_id]);
+    await PaymentRepository.createPayment({
+      id: paymentId,
+      payment_gateway_id: gatewayId,
+      amount,
+      status: 'Pending',
+      payment_method,
+      entity_type,
+      entity_id
+    });
 
     return { paymentId, gatewayId, amount, entity_type, entity_id };
   },
 
   // Confirm payment success (Mock webhook or callback)
   async capturePayment(gatewayId) {
-    const payment = await dbQuery.get('SELECT * FROM payments WHERE payment_gateway_id = ?', [gatewayId]);
+    const payment = await PaymentRepository.getPaymentByGatewayId(gatewayId);
     if (!payment) throw new Error('Payment transaction not found');
 
     if (payment.status === 'Captured') return payment;
 
     // 1. Update payment ledger status
-    await dbQuery.run(`
-      UPDATE payments
-      SET status = 'Captured', updated_at = CURRENT_TIMESTAMP
-      WHERE payment_gateway_id = ?
-    `, [gatewayId]);
+    await PaymentRepository.updatePaymentStatus(gatewayId, 'Captured');
 
     // 2. Fetch the updated payment record
-    const updatedPayment = await dbQuery.get('SELECT * FROM payments WHERE payment_gateway_id = ?', [gatewayId]);
+    const updatedPayment = await PaymentRepository.getPaymentByGatewayId(gatewayId);
 
     // 3. Find and update or generate invoice
     const customerId = await this.getCustomerIdFromEntity(updatedPayment.entity_type, updatedPayment.entity_id);
@@ -90,25 +85,11 @@ export const paymentService = {
 
   // Utility to find user id from order/booking/rental
   async getCustomerIdFromEntity(type, id) {
-    let row;
-    if (type === 'Booking') {
-      row = await dbQuery.get('SELECT customer_id FROM bookings WHERE id = ?', [id]);
-    } else if (type === 'Rental') {
-      row = await dbQuery.get('SELECT customer_id FROM rentals WHERE id = ?', [id]);
-    } else if (type === 'Order') {
-      row = await dbQuery.get('SELECT customer_id FROM orders WHERE id = ?', [id]);
-    }
-    return row ? row.customer_id : null;
+    return PaymentRepository.getCustomerIdFromEntity(type, id);
   },
 
   async updateSourceEntityStatus(type, id) {
-    if (type === 'Booking') {
-      await dbQuery.run('UPDATE bookings SET status = "Confirmed" WHERE id = ?', [id]);
-    } else if (type === 'Rental') {
-      await dbQuery.run('UPDATE rentals SET status = "Active" WHERE id = ?', [id]);
-    } else if (type === 'Order') {
-      await dbQuery.run('UPDATE orders SET status = "Paid" WHERE id = ?', [id]);
-    }
+    return PaymentRepository.updateSourceEntityStatus(type, id);
   }
 };
 
@@ -139,3 +120,4 @@ appEvents.subscribe('order.placed', async ({ order }) => {
     status: 'Unpaid'
   });
 });
+

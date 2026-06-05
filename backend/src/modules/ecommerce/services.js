@@ -1,11 +1,13 @@
 import { v4 as uuidv4 } from 'uuid';
-import { dbQuery } from '../../shared/database/index.js';
+import { OrderRepository } from './OrderRepository.js';
+import { InventoryRepository } from '../inventory/InventoryRepository.js';
 import appEvents from '../../shared/events/index.js';
 
 export const ecommerceService = {
   async getProducts() {
     // Return all items flagged for sale (Stationery items)
-    return dbQuery.all('SELECT * FROM inventory WHERE type = "Sale" AND status = "Available"');
+    const items = await InventoryRepository.listAll();
+    return items.filter(item => item.type === 'Sale' && item.status === 'Available');
   },
 
   async createOrder(customerId, { items, shipping_address }) {
@@ -18,8 +20,8 @@ export const ecommerceService = {
     const validatedItems = [];
 
     for (const cartItem of items) {
-      const dbItem = await dbQuery.get('SELECT * FROM inventory WHERE id = ? AND type = "Sale"', [cartItem.inventory_id]);
-      if (!dbItem) {
+      const dbItem = await InventoryRepository.getById(cartItem.inventory_id);
+      if (!dbItem || dbItem.type !== 'Sale') {
         throw new Error(`Product not found`);
       }
       if (dbItem.available_quantity < cartItem.quantity) {
@@ -37,39 +39,29 @@ export const ecommerceService = {
     const orderId = uuidv4();
 
     // 2. Create Order Header record
-    await dbQuery.run(`
-      INSERT INTO orders (id, customer_id, status, total_amount, shipping_address)
-      VALUES (?, ?, 'Pending', ?, ?)
-    `, [orderId, customerId, totalAmount, shipping_address]);
+    await OrderRepository.create({
+      id: orderId,
+      customer_id: customerId,
+      status: 'Pending',
+      total_amount: totalAmount,
+      shipping_address
+    });
 
     // 3. Create Order Line Items and deduct stock
     for (const item of validatedItems) {
       const lineId = uuidv4();
-      await dbQuery.run(`
-        INSERT INTO order_items (id, order_id, inventory_id, quantity, price)
-        VALUES (?, ?, ?, ?, ?)
-      `, [lineId, orderId, item.inventory_id, item.quantity, item.price]);
+      await OrderRepository.createItem({
+        id: lineId,
+        order_id: orderId,
+        inventory_id: item.inventory_id,
+        quantity: item.quantity,
+        price: item.price
+      });
 
-      await dbQuery.run(`
-        UPDATE inventory
-        SET available_quantity = available_quantity - ?
-        WHERE id = ?
-      `, [item.quantity, item.inventory_id]);
+      await InventoryRepository.decrementAvailableQuantity(item.inventory_id, item.quantity);
     }
 
-    const order = await dbQuery.get(`
-      SELECT o.*, c.email as customer_email
-      FROM orders o
-      JOIN users c ON o.customer_id = c.id
-      WHERE o.id = ?
-    `, [orderId]);
-
-    order.items = await dbQuery.all(`
-      SELECT oi.*, i.name as product_name
-      FROM order_items oi
-      JOIN inventory i ON oi.inventory_id = i.id
-      WHERE oi.order_id = ?
-    `, [orderId]);
+    const order = await OrderRepository.getById(orderId);
 
     // Event: order.placed
     appEvents.publish('order.placed', { order });
@@ -79,45 +71,15 @@ export const ecommerceService = {
 
   async getOrders(user) {
     if (user.role === 'Admin' || user.role === 'Super Admin' || user.role === 'Inventory Manager') {
-      const orders = await dbQuery.all(`
-        SELECT o.*, c.first_name || ' ' || c.last_name as customer_name
-        FROM orders o
-        JOIN users c ON o.customer_id = c.id
-        ORDER BY o.created_at DESC
-      `);
-      for (const order of orders) {
-        order.items = await dbQuery.all(`
-          SELECT oi.*, i.name as product_name
-          FROM order_items oi
-          JOIN inventory i ON oi.inventory_id = i.id
-          WHERE oi.order_id = ?
-        `, [order.id]);
-      }
-      return orders;
+      return OrderRepository.getAll();
     } else {
       // Customer
-      const orders = await dbQuery.all(`
-        SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC
-      `, [user.id]);
-      for (const order of orders) {
-        order.items = await dbQuery.all(`
-          SELECT oi.*, i.name as product_name
-          FROM order_items oi
-          JOIN inventory i ON oi.inventory_id = i.id
-          WHERE oi.order_id = ?
-        `, [order.id]);
-      }
-      return orders;
+      return OrderRepository.getByCustomerId(user.id);
     }
   },
 
   async updateOrderStatus(orderId, status) {
-    await dbQuery.run(`
-      UPDATE orders
-      SET status = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `, [status, orderId]);
-
-    return dbQuery.get('SELECT * FROM orders WHERE id = ?', [orderId]);
+    return OrderRepository.updateStatus(orderId, status);
   }
 };
+

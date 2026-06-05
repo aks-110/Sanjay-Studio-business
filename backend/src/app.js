@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
-import { initDatabase } from './shared/database/index.js';
+import { initDatabase, getDatabaseHealth, closeDatabase } from './shared/database/index.js';
 
 // Import Domain Routers
 import authRouter from './modules/auth/routes.js';
@@ -39,9 +39,21 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date() });
+// Health check endpoints
+app.get('/health', async (req, res) => {
+  const dbHealth = await getDatabaseHealth();
+  const systemStatus = (dbHealth.supabase.status === 'up' && dbHealth.mongodb.status === 'up') ? 'ok' : 'degraded';
+  res.status(systemStatus === 'ok' ? 200 : 500).json({
+    status: systemStatus,
+    timestamp: new Date(),
+    services: dbHealth
+  });
+});
+
+app.get('/health/database', async (req, res) => {
+  const dbHealth = await getDatabaseHealth();
+  const isHealthy = dbHealth.supabase.status === 'up' && dbHealth.mongodb.status === 'up';
+  res.status(isHealthy ? 200 : 503).json(dbHealth);
 });
 
 // Mount Routes
